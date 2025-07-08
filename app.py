@@ -1,18 +1,17 @@
 import streamlit as st
 import pickle
-from altair.theme import names
 import gzip
 import time
 import requests
 
-# Load the movie data
+# Load movie data
 movies = pickle.load(open('movies.pkl', 'rb'))
 
-# Load the compressed similarity matrix
+# Load similarity matrix
 with gzip.open('similarity_compressed.pkl.gz', 'rb') as f:
     similarity_list = pickle.load(f)
 
-# TMDB poster fetch function with retry logic
+# Function to fetch poster from TMDB
 def fetch_poster(movie_id, retries=3, delay=1):
     url = f"https://api.themoviedb.org/3/movie/{movie_id}?api_key=aba58951484b1b4cfc582b0e4cf5bf58&language=en-US"
     headers = {
@@ -26,14 +25,11 @@ def fetch_poster(movie_id, retries=3, delay=1):
             poster_path = data.get("poster_path")
             if poster_path:
                 return f"https://image.tmdb.org/t/p/w500{poster_path}"
-            else:
-                return "https://via.placeholder.com/500x750?text=No+Image"
-        except Exception as e:
-            print(f"Poster fetch error (attempt {attempt + 1}):", e)
+        except:
             time.sleep(delay)
     return "https://via.placeholder.com/500x750?text=No+Image"
 
-# Movie recommendation logic
+# Recommender function
 def recommend(movie):
     movie_index = movies[movies['title'] == movie].index[0]
     distances = similarity_list[movie_index]
@@ -47,10 +43,34 @@ def recommend(movie):
         recommended_movies_posters.append(fetch_poster(movie_id))
     return recommended_movies, recommended_movies_posters
 
-# Streamlit UI
+# --- Streamlit App ---
 st.title("🎬 Movie Recommender System")
 
-# ✅ Top 25 Movies of All Time (Static Section)
+# 🔍 Recommender Search
+movie_list = movies['title'].values
+option = st.selectbox("Search for a movie to get recommendations", movie_list)
+
+if st.button('Recommend'):
+    names, posters = recommend(option)
+    st.subheader("Recommended Movies:")
+    col1, col2, col3, col4, col5 = st.columns(5)
+    with col1:
+        st.text(names[0])
+        st.image(posters[0], use_container_width=True)
+    with col2:
+        st.text(names[1])
+        st.image(posters[1], use_container_width=True)
+    with col3:
+        st.text(names[2])
+        st.image(posters[2], use_container_width=True)
+    with col4:
+        st.text(names[3])
+        st.image(posters[3], use_container_width=True)
+    with col5:
+        st.text(names[4])
+        st.image(posters[4], use_container_width=True)
+
+# 🍿 Static Top 25 Movies
 st.subheader("🍿 Top 25 Movies of All Time")
 
 top_25_titles = [
@@ -69,32 +89,7 @@ for idx, title in enumerate(top_25_titles):
         movie_row = movies[movies['title'] == title].iloc[0]
         poster_url = fetch_poster(movie_row['id'])
         with cols[idx % 5]:
-            st.image(poster_url, caption=title, use_column_width=True)
+            st.image(poster_url, caption=title, use_container_width=True)
     except:
         with cols[idx % 5]:
             st.warning("Poster not found")
-
-# 🎯 Movie Recommender Section
-movie_list = movies['title'].values
-option = st.selectbox("Search for a movie to get recommendations", movie_list)
-
-if st.button('Recommend'):
-    names, posters = recommend(option)
-    st.subheader("Recommended Movies:")
-    col1, col2, col3, col4, col5 = st.columns(5)
-
-    with col1:
-        st.text(names[0])
-        st.image(posters[0])
-    with col2:
-        st.text(names[1])
-        st.image(posters[1])
-    with col3:
-        st.text(names[2])
-        st.image(posters[2])
-    with col4:
-        st.text(names[3])
-        st.image(posters[3])
-    with col5:
-        st.text(names[4])
-        st.image(posters[4])
